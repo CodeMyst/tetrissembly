@@ -70,7 +70,7 @@ main_loop:
     ; check if reached bottom of board (170px * 200)
     ; if reached, dont move it anymore
     cmp di, 54400
-    jae skip_move_down
+    jae draw_element
 
     ; move one row down, and save back to var
     mov di, [test_rect_pos]
@@ -89,15 +89,15 @@ main_loop:
 check_move_right:
     ; check if the rect should move right
     cmp [should_move_right], 1
-    jne skip_move_down ; if not, skip
+    jne draw_element ; if not, skip
 
     ; move right
     add di, 10
     mov [test_rect_pos], di
     mov [should_move_right], 0
-    jmp skip_move_down
+    jmp draw_element
 
-skip_move_down:
+draw_element:
     ; draw rect
     mov dl, [element_color]
     call draw_rect
