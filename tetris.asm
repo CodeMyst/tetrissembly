@@ -20,6 +20,12 @@ screen_height dw 200
 
 should_quit db 0 ; whether the game should stop
 
+; should the element move left/right?
+should_move_left db 0
+should_move_right db 0
+
+element_color db 4
+
 board_color db 150
 board_width dw 100
 board_height dw 160
@@ -32,7 +38,7 @@ board_top_right dw 6610
 ; 110x(200-20)=110x180
 board_bottom_left dw 57710
 
-test_rect_y_pos dw 6870
+test_rect_pos dw 6870
 
 ; --------------------------------------------------
 ; CODE
@@ -46,7 +52,6 @@ init_graphics:
 ; draw the tetris board
 call draw_board
 
-mov di, [test_rect_y_pos]
 mov dl, 4
 
 ; main game loop
@@ -57,19 +62,44 @@ main_loop:
     cmp [should_quit], 1
     je game_exit
 
-    ; first clear the test rect (draw rect with black color)
+    ; first clear the rect at the current position (draw rect with black color)
     mov dl, 0
+    mov di, [test_rect_pos]
     call draw_rect
 
-    ; draw test rect and move one row down
-    ; set back color
-    mov dl, 4
     ; check if reached bottom of board (170px * 200)
-    ; if reached, dont move it down anymore
+    ; if reached, dont move it anymore
     cmp di, 54400
     jae skip_move_down
+
+    ; move one row down, and save back to var
+    mov di, [test_rect_pos]
     add di, [screen_width]
+    mov [test_rect_pos], di
+
+    ; check if the rect should move left
+    cmp [should_move_left], 1
+    jne check_move_right ; if not, skip to check if it should move right
+
+    ; move left
+    sub di, 10
+    mov [test_rect_pos], di
+    mov [should_move_left], 0
+
+check_move_right:
+    ; check if the rect should move right
+    cmp [should_move_right], 1
+    jne skip_move_down ; if not, skip
+
+    ; move right
+    add di, 10
+    mov [test_rect_pos], di
+    mov [should_move_right], 0
+    jmp skip_move_down
+
 skip_move_down:
+    ; draw rect
+    mov dl, [element_color]
     call draw_rect
 
     ; delay game loop
@@ -100,7 +130,7 @@ handle_input:
     int 16h
     jnz key_pressed
 
-    jmp handle_input_end ; if no key pressed
+    jmp handle_input_end ; if no key pressed, exit procedure
 
 key_pressed:
     mov ah, 0
@@ -118,11 +148,27 @@ handle_pressed_key:
     cmp al, 'q'
     je handle_quit
 
+    ; is a pressed? move left
+    cmp al, 'a'
+    je handle_left
+
+    ; is d pressed? move right
+    cmp al, 'd'
+    je handle_right
+
     ; unknown key
     jmp handle_input_end
 
 handle_quit:
     mov [should_quit], 1
+    jmp handle_input_end
+
+handle_left:
+    mov [should_move_left], 1
+    jmp handle_input_end
+
+handle_right:
+    mov [should_move_right], 1
     jmp handle_input_end
 
 handle_input_end:
