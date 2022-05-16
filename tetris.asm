@@ -18,6 +18,8 @@ jmp init_graphics ; skip the variables
 screen_width dw 320
 screen_height dw 200
 
+should_quit db 0 ; whether the game should stop
+
 board_color db 150
 board_width dw 100
 board_height dw 160
@@ -49,6 +51,12 @@ mov dl, 4
 
 ; main game loop
 main_loop:
+    call handle_input
+
+    ; check if should quit
+    cmp [should_quit], 1
+    je game_exit
+
     ; first clear the test rect (draw rect with black color)
     mov dl, 0
     call draw_rect
@@ -68,16 +76,60 @@ skip_move_down:
     call delay
     jmp main_loop
 
-; return back to text mode
-mov ax, 3h
-int 10h
+game_exit:
+    ; return back to text mode
+    mov ax, 3h
+    int 10h
 
-; return the control back to the OS
-ret
+    ; return the control back to the OS
+    ret
 
 ; --------------------------------------------------
 ; PROCEDURES
 ; --------------------------------------------------
+
+; ----------
+; handles any keyboard input
+; ----------
+handle_input:
+    push ax
+    push dx
+
+    ; check if any key is pressed
+    mov ah, 1
+    int 16h
+    jnz key_pressed
+
+    jmp handle_input_end ; if no key pressed
+
+key_pressed:
+    mov ah, 0
+    int 16h
+
+    ; clear keyboard buffer
+    push ax
+    mov ah, 6
+    mov dl, 0FFh
+    int 21h
+    pop ax
+
+handle_pressed_key:
+    ; is q pressed? quit
+    cmp al, 'q'
+    je handle_quit
+
+    ; unknown key
+    jmp handle_input_end
+
+handle_quit:
+    mov [should_quit], 1
+    jmp handle_input_end
+
+handle_input_end:
+    pop dx
+    pop ax
+
+    ret
 
 ; ----------
 ; delay procedure, calls nop a lot of times
