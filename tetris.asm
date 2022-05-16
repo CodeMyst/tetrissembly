@@ -30,6 +30,8 @@ board_top_right dw 6610
 ; 110x(200-20)=110x180
 board_bottom_left dw 57710
 
+test_rect_y_pos dw 6870
+
 ; --------------------------------------------------
 ; CODE
 ; --------------------------------------------------
@@ -42,8 +44,28 @@ init_graphics:
 ; draw the tetris board
 call draw_board
 
-; infinite loop for now
+mov di, [test_rect_y_pos]
+mov dl, 4
+
+; main game loop
 main_loop:
+    ; first clear the test rect (draw rect with black color)
+    mov dl, 0
+    call draw_rect
+
+    ; draw test rect and move one row down
+    ; set back color
+    mov dl, 4
+    ; check if reached bottom of board (170px * 200)
+    ; if reached, dont move it down anymore
+    cmp di, 54400
+    jae skip_move_down
+    add di, [screen_width]
+skip_move_down:
+    call draw_rect
+
+    ; delay game loop
+    call delay
     jmp main_loop
 
 ; return back to text mode
@@ -56,6 +78,21 @@ ret
 ; --------------------------------------------------
 ; PROCEDURES
 ; --------------------------------------------------
+
+; ----------
+; delay procedure, calls nop a lot of times
+; ----------
+delay:
+    push cx
+
+    mov cx, 50000
+delay_loop:
+    nop
+    loop delay_loop
+
+    pop cx
+
+    ret
 
 ; ----------
 ; draw the tetris board
@@ -87,6 +124,45 @@ draw_board:
     mov di, [board_top_right]
     mov cx, [board_height] ; have to set again because cx gets reset (looping)
     call draw_line_y
+
+    ret
+
+; ----------
+; draw a rectangle
+;
+; dl - color
+; di - position
+; ----------
+draw_rect:
+    push di
+    push cx
+
+    ; loop counter for for rect height
+    mov cx, 10
+
+draw_rect_loop:
+    ; save current loop counter,
+    ; because it will be used for drawing horizontal lines
+    push cx
+
+    ; save position
+    push di
+
+    ; draw horizontal line, width is 10
+    mov cx, 10
+    call draw_line_x
+
+    ; return position, and move it down one line
+    pop di
+    add di, [screen_width]
+
+    ; return back loop counter
+    pop cx
+
+    loop draw_rect_loop
+
+    pop cx
+    pop di
 
     ret
 
