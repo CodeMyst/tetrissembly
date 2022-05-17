@@ -66,10 +66,11 @@ main_loop:
     cmp [should_quit], 1
     je game_exit
 
-    ; check if reached bottom of board (170px)
-    ; if reached, dont move it anymore, spawn new one
-    cmp [rect_pos_y], 170
-    jl skip_spawn_new
+    ; check if can move down
+    ; if can't, dont move it anymore, spawn new one
+    call can_move_down
+    cmp al, 1
+    je skip_spawn_new
 
     ; draw rect with final color
     mov dl, [element_color_final]
@@ -146,6 +147,47 @@ game_exit:
 ; --------------------------------------------------
 ; PROCEDURES
 ; --------------------------------------------------
+
+; ----------
+; checks if the current element can move down
+;
+; al is set to 1 if the element can move down
+; ----------
+can_move_down:
+    push bx
+    push di
+    push dx
+
+    cmp [rect_pos_y], 170 ; check if bottom of board reached
+    jae can_move_down_false
+
+    ; check if pixels directly below the element are blocked
+
+    ; calculate position below current block
+    ; y * width + x
+    mov ax, [screen_width]
+    mov bx, [rect_pos_y]
+    add bx, 10 ; move down by one block
+    mul bx
+    add ax, [rect_pos_x]
+    mov di, ax
+
+    call read_pixel
+    cmp dl, [element_color_final] ; check if pixel has the blocked color
+    je can_move_down_false
+
+    mov al, 1 ; true
+    jmp can_move_down_end
+
+can_move_down_false:
+    mov al, 0 ; false
+
+can_move_down_end:
+    pop bx
+    pop dx
+    pop di
+
+    ret
 
 ; ----------
 ; calculates the memory-based position of the current element
@@ -235,7 +277,7 @@ handle_input_end:
 delay:
     push cx
 
-    mov cx, 50000
+    mov cx, 20000
 delay_loop:
     nop
     loop delay_loop
@@ -368,6 +410,26 @@ draw_pixel:
     mov es, ax
     ; set 0A000+di to specified color
     mov byte [es:di], dl
+
+    pop es
+    pop ax
+
+    ret
+
+; ----------
+; reads a pixel from the screen
+;
+; dl - color (output)
+; di - position
+; ----------
+read_pixel:
+    push ax
+    push es
+
+    mov ax, 0A000h
+    mov es, ax
+    ; read 0A000+di
+    mov byte dl, [es:di]
 
     pop es
     pop ax
