@@ -77,10 +77,12 @@ main_loop:
     jne check_move_right ; if not, skip to check if it should move right
 
     ; move left
+    mov [should_move_left], 0
+    cmp [rect_pos_x], 110 ; check if at left board edge
+    je check_move_right ; if it is, skip moving left
     mov di, [rect_pos_x]
     sub di, 10
     mov [rect_pos_x], di
-    mov [should_move_left], 0
 
 check_move_right:
     ; check if the rect should move right
@@ -88,10 +90,12 @@ check_move_right:
     jne draw_element ; if not, skip
 
     ; move right
+    mov [should_move_right], 0
+    cmp [rect_pos_x], 200 ; check if at right board edge
+    je draw_element ; if it is, skip moving right
     mov di, [rect_pos_x]
     add di, 10
     mov [rect_pos_x], di
-    mov [should_move_right], 0
     jmp draw_element
 
 draw_element:
