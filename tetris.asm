@@ -32,13 +32,15 @@ board_height dw 160
 ; center of the screen is 160px
 ; minus half the length of the board_width is 110px
 ; 110x20
-board_top_left dw 6510
+board_top_left dw 6509
 ; 110+board_width x 20 = 210x20
 board_top_right dw 6610
 ; 110x(200-20)=110x180
 board_bottom_left dw 57710
 
-test_rect_pos dw 6870
+rect_pos_x dw 150
+rect_pos_y dw 21
+rect_pos dw 0
 
 ; --------------------------------------------------
 ; CODE
@@ -52,8 +54,6 @@ init_graphics:
 ; draw the tetris board
 call draw_board
 
-mov dl, 4
-
 ; main game loop
 main_loop:
     call handle_input
@@ -62,28 +62,24 @@ main_loop:
     cmp [should_quit], 1
     je game_exit
 
-    ; first clear the rect at the current position (draw rect with black color)
-    mov dl, 0
-    mov di, [test_rect_pos]
-    call draw_rect
-
-    ; check if reached bottom of board (170px * 200)
+    ; check if reached bottom of board (170px)
     ; if reached, dont move it anymore
-    cmp di, 54400
+    cmp [rect_pos_y], 170
     jae draw_element
 
-    ; move one row down, and save back to var
-    mov di, [test_rect_pos]
-    add di, [screen_width]
-    mov [test_rect_pos], di
+    ; move one row down
+    mov di, [rect_pos_y]
+    inc di
+    mov [rect_pos_y], di
 
     ; check if the rect should move left
     cmp [should_move_left], 1
     jne check_move_right ; if not, skip to check if it should move right
 
     ; move left
+    mov di, [rect_pos_x]
     sub di, 10
-    mov [test_rect_pos], di
+    mov [rect_pos_x], di
     mov [should_move_left], 0
 
 check_move_right:
@@ -92,18 +88,26 @@ check_move_right:
     jne draw_element ; if not, skip
 
     ; move right
+    mov di, [rect_pos_x]
     add di, 10
-    mov [test_rect_pos], di
+    mov [rect_pos_x], di
     mov [should_move_right], 0
     jmp draw_element
 
 draw_element:
     ; draw rect
     mov dl, [element_color]
+    call calc_pos
+    mov di, [rect_pos]
     call draw_rect
 
     ; delay game loop
     call delay
+
+    ; clear the rect at the current position (draw rect with black color)
+    mov dl, 0
+    call draw_rect
+
     jmp main_loop
 
 game_exit:
@@ -117,6 +121,29 @@ game_exit:
 ; --------------------------------------------------
 ; PROCEDURES
 ; --------------------------------------------------
+
+; ----------
+; calculates the memory-based position of the current element
+; ----------
+calc_pos:
+    push ax
+    push bx
+    push dx
+
+    ; y * width + x
+    mov ax, [screen_width]
+    mov bx, [rect_pos_y]
+    mul bx
+
+    add ax, [rect_pos_x]
+
+    mov [rect_pos], ax
+
+    pop dx
+    pop bx
+    pop ax
+
+    ret
 
 ; ----------
 ; handles any keyboard input
@@ -202,6 +229,7 @@ draw_board:
 
     mov di, [board_top_left]
     mov cx, [board_width]
+    inc cx ; + 1px, so it aligns with the edge of the right line
     call draw_line_x
 
     ; bottom line
@@ -215,6 +243,7 @@ draw_board:
 
     mov di, [board_top_left]
     mov cx, [board_height] ; have to set again because cx gets reset (looping)
+    inc cx
     call draw_line_y
 
     ; right line
