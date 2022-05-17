@@ -104,8 +104,9 @@ skip_spawn_new:
 
     ; move left
     mov [should_move_left], 0
-    cmp [rect_pos_x], 110 ; check if at left board edge
-    je check_move_right ; if it is, skip moving left
+    call can_move_left ; check if it can move left
+    cmp al, 1
+    jne check_move_right ; if it can't, skip moving left
     mov di, [rect_pos_x]
     sub di, 10
     mov [rect_pos_x], di
@@ -117,8 +118,9 @@ check_move_right:
 
     ; move right
     mov [should_move_right], 0
-    cmp [rect_pos_x], 200 ; check if at right board edge
-    je draw_element ; if it is, skip moving right
+    call can_move_right ; check if it can move right
+    cmp al, 1
+    jne draw_element ; if it can't, skip moving right
     mov di, [rect_pos_x]
     add di, 10
     mov [rect_pos_x], di
@@ -183,6 +185,98 @@ can_move_down_false:
     mov al, 0 ; false
 
 can_move_down_end:
+    pop bx
+    pop dx
+    pop di
+
+    ret
+
+; ----------
+; checks if the current element can move left
+;
+; al is set to 1 if the element can move left
+; ----------
+can_move_left:
+    push bx
+    push di
+    push dx
+
+    cmp [rect_pos_x], 110 ; check if at left board edge
+    jle can_move_left_false
+
+    ; check if pixels directly left of the element are blocked
+
+    ; calculate position below current block
+    ; y * width + x
+    mov ax, [screen_width]
+    mov bx, [rect_pos_y]
+    mul bx
+    add ax, [rect_pos_x]
+    sub ax, 1 ; one pixel left
+    mov di, ax
+
+    call read_pixel
+    cmp dl, [element_color_final] ; check if pixel has the blocked color
+    je can_move_left_false
+
+    add di, 3200 ; one pixel left, 10 pixels down, need to check top left and bottom left edges
+    call read_pixel
+    cmp dl, [element_color_final] ; check if pixel has the blocked color
+    je can_move_left_false
+
+    mov al, 1 ; true
+    jmp can_move_left_end
+
+can_move_left_false:
+    mov al, 0 ; false
+
+can_move_left_end:
+    pop bx
+    pop dx
+    pop di
+
+    ret
+
+; ----------
+; checks if the current element can move right
+;
+; al is set to 1 if the element can move right
+; ----------
+can_move_right:
+    push bx
+    push di
+    push dx
+
+    cmp [rect_pos_x], 200 ; check if at right board edge
+    jae can_move_right_false
+
+    ; check if pixels directly right of the element are blocked
+
+    ; calculate position below current block
+    ; y * width + x
+    mov ax, [screen_width]
+    mov bx, [rect_pos_y]
+    mul bx
+    add ax, [rect_pos_x]
+    add ax, 11 ; one pixel right (10 + 1)
+    mov di, ax
+
+    call read_pixel
+    cmp dl, [element_color_final] ; check if pixel has the blocked color
+    je can_move_right_false
+
+    add di, 3200 ; one pixel right, 10 pixels down, need to check top right and bottom right edges
+    call read_pixel
+    cmp dl, [element_color_final] ; check if pixel has the blocked color
+    je can_move_right_false
+
+    mov al, 1 ; true
+    jmp can_move_right_end
+
+can_move_right_false:
+    mov al, 0 ; false
+
+can_move_right_end:
     pop bx
     pop dx
     pop di
@@ -277,7 +371,7 @@ handle_input_end:
 delay:
     push cx
 
-    mov cx, 20000
+    mov cx, 50000
 delay_loop:
     nop
     loop delay_loop
