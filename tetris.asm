@@ -25,6 +25,7 @@ should_move_left db 0
 should_move_right db 0
 
 element_color db 4
+element_color_final db 8
 
 board_color db 150
 board_width dw 100
@@ -37,6 +38,9 @@ board_top_left dw 6509
 board_top_right dw 6610
 ; 110x(200-20)=110x180
 board_bottom_left dw 57710
+
+rect_start_pos_x dw 150
+rect_start_pos_y dw 21
 
 rect_pos_x dw 150
 rect_pos_y dw 21
@@ -63,9 +67,30 @@ main_loop:
     je game_exit
 
     ; check if reached bottom of board (170px)
-    ; if reached, dont move it anymore
+    ; if reached, dont move it anymore, spawn new one
     cmp [rect_pos_y], 170
-    jae draw_element
+    jl skip_spawn_new
+
+    ; draw rect with final color
+    mov dl, [element_color_final]
+    call calc_pos
+    mov di, [rect_pos]
+    call draw_rect
+
+    ; set position to starting position
+    mov ax, [rect_start_pos_x]
+    mov [rect_pos_x], ax
+    mov ax, [rect_start_pos_y]
+    mov [rect_pos_y], ax
+    jmp draw_element
+
+skip_spawn_new:
+
+    ; clear the rect at the current position (draw rect with black color)
+    mov dl, 0
+    call calc_pos
+    mov di, [rect_pos]
+    call draw_rect
 
     ; move one row down
     mov di, [rect_pos_y]
@@ -107,10 +132,6 @@ draw_element:
 
     ; delay game loop
     call delay
-
-    ; clear the rect at the current position (draw rect with black color)
-    mov dl, 0
-    call draw_rect
 
     jmp main_loop
 
