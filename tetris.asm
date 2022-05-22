@@ -17,6 +17,8 @@
 ;        `fasm tetris.asm`
 ;        Now open the COM executable in DOSbox.
 ;
+; You can find some example gameplay on the GitHub page:
+;
 ; GitHub: https://github.com/CodeMyst/tetrissembly
 ; --------------------------------------------------
 
