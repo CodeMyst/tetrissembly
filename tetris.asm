@@ -154,99 +154,177 @@ game_exit:
 ; --------------------------------------------------
 
 ; ----------
-; checks if the last 10px high line is full
+; checks if any one of the rows is full
 ; ----------
 check_lines:
-    push dx
     push ax
+    push bx
+    push dx
 
-    ; check lines of the rect
-    ; [110, 170] (top-left) to [210, 170] (top-right)
-    ; [110, 180] (bottom-left) to [210, 180] (bottom-right)
+    mov cx, 16 ; number of rows to go through
 
-    mov di, 54510 ; top-left
-    mov ax, 10 ; height of line
-    mov cx, 100 ; width of line
+check_lines_loop:
+    mov di, cx
+    call check_line
 
-    ; read one line of 100px
-read_line:
-    call read_pixel
-
-    cmp dl, 0 ; check if read pixel is black, meaning empty
-    je check_end ; if empty, not a full line, end
-
-    inc di
-
-    loop read_line
-
-    ; if we are here, it means the line was full
-
-    dec ax
-
-    ; check if read all 10 lines, if did, go to end
-    cmp ax, 0
-    je check_clear_line
-
-    ; go back to start and move one row down
-    sub di, 100 ; go to start of row
-    add di, [screen_width] ; move one row down
-    mov cx, 100
-
-    jmp read_line
-
-    ; if we are here, it means the whole 10px high line was full
-    ; now move all the lines above down
-check_clear_line:
-    call clear_line
+    loop check_lines_loop
 
 check_end:
-    pop ax
     pop dx
+    pop bx
+    pop ax
+
+    ret
+
+
+; ----------
+; checks one single row of blocks if it is filled
+;
+; di - row index to check
+; ----------
+check_line:
+    push ax
+    push bx
+    push cx
+
+    mov si, di ; save row
+
+    ; start the the bottom row and move up
+    mov di, [board_top_left]
+    inc di ; needs one pixel extra and one row extra
+    add di, [screen_width]
+
+    ; move to top-left pixel of current row
+
+    ; current row * 10
+    mov ax, si ; get row
+    mov bx, 10
+    mul bx
+
+    ; current row * 10 * 320
+    mov bx, [screen_width]
+    mul bx
+
+    ; top_left + bottom_left of row
+    add di, ax
+    ; go to top-left of row
+    sub di, [screen_width]
+
+    mov cx, 100 ; width
+    mov ax, 10 ; height
+
+    ; check if current row is filled
+check_line_read_line:
+    call read_pixel
+
+    cmp dl, 0 ; if read pixel is 0, line is not filled, go to next row
+    je check_line_end
+
+    inc di ; go one pixel right
+
+    loop check_line_read_line
+
+    ; if we are here it means that a 1px high line was full
+
+    dec ax ; go to next line
+
+    cmp ax, 0 ; if we read all 10 lines it means the row is full, clear it
+    je check_line_clear_line
+
+    sub di, 100 ; go to start of row
+    add di, [screen_width] ; move on row down
+    mov cx, 100 ; reset counter
+
+    jmp check_line_read_line
+
+check_line_clear_line:
+    mov di, si
+    call clear_row
+
+check_line_end:
+    pop ax
+    pop bx
+    pop cx
 
     ret
 
 ; ----------
-; clears the last line by moving the above lines down
+; clears the specified row by moving the above rows down
+;
+; di - row index to clear
 ; ----------
-clear_line:
+clear_row:
     push ax
     push dx
 
-    ; start at the second row from top, go through all pixels
+    mov si, di ; save row
+
+    ; start at the row - 1 from top, go through all pixels
     ; read the pixel color and write it to the same position 10px down
 
-    mov di, 54510 ; go back to start
-    sub di, 3200 ; move 10 rows up, 320 * 10
+    ; start the the bottom row and move up
+    mov di, [board_top_left]
+    inc di ; needs one pixel extra and one row extra
+    add di, [screen_width]
 
-    mov ax, 10 ; height
+    ; move to top-left pixel of current row
+
+    ; current row * 10
+    mov ax, si ; get row
+    mov bx, 10
+    mul bx
+
+    ; current row * 10 * 320
+    mov bx, [screen_width]
+    mul bx
+
+    ; top_left + bottom_left of row
+    add di, ax
+    ; go to top-left of row
+    sub di, [screen_width]
+    sub di, 3200 ; move 10 lines up (320 * 10)
+
     mov cx, 100 ; width
+    mov ax, 10 ; height
 
-clear_line_loop:
+clear_row_loop:
     call read_pixel
+
+    cmp dl, [element_color]
+    je clear_row_next_line ; if came across current element color, don't copy that
+
     add di, 3200 ; move 10 rows down
     call draw_pixel ; write the read pixel
     sub di, 3200 ; move back 10 rows
     inc di ; move one pixel right
 
-    loop clear_line_loop
+    loop clear_row_loop
 
-    ; go to next row
-
+    ; go to next line
+clear_row_next_line:
     dec ax
 
     ; check if moved all 10 rows
     cmp ax, 0
-    je clear_line_end
-    ; TODO: what to do now? move another line
+    je clear_row_next_row
 
     ; go back to start, and move one row down
     sub di, 100
     add di, [screen_width]
     mov cx, 100 ; reset loop counter
 
-    jmp clear_line_loop
+    jmp clear_row_loop
 
-clear_line_end:
+    ; move down next row
+clear_row_next_row:
+    mov di, si
+    cmp di, 2 ; check if at end
+    je clear_row_end
+
+    dec di ; go up a row
+    call clear_row
+
+clear_row_end:
     pop dx
     pop ax
 
