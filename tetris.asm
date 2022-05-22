@@ -46,6 +46,10 @@ rect_pos_x dw 150
 rect_pos_y dw 21
 rect_pos dw 0
 
+score_msg db "score: $"
+score_buf db "000$"
+score dw 0
+
 ; --------------------------------------------------
 ; CODE
 ; --------------------------------------------------
@@ -135,6 +139,22 @@ draw_element:
     call calc_pos
     mov di, [rect_pos]
     call draw_rect
+
+    ; print score
+    mov dh, 1
+    mov dl, 1
+    mov bx, score_msg
+    call print
+
+    mov ax, [score]
+    push ax
+    push score_buf
+    call inttostr
+
+    mov dh, 1
+    mov dl, 8
+    mov bx, score_buf
+    call print
 
     ; delay game loop
     call delay
@@ -238,6 +258,10 @@ check_line_read_line:
     jmp check_line_read_line
 
 check_line_clear_line:
+    mov ax, [score] ; increment score
+    inc ax
+    mov [score], ax
+
     mov di, si
     call clear_row
 
@@ -561,6 +585,28 @@ delay_loop:
     ret
 
 ; ----------
+; prints a string
+;
+; dh - row
+; dl - col
+; bx - string address
+; ----------
+print:
+
+    ; set cursor pos
+    push bx
+    mov ah, 2
+    xor bh, bh
+    int 10h
+
+    ; print string
+    mov ah, 9
+    pop dx
+    int 21h
+
+    ret
+
+; ----------
 ; draw the tetris board
 ; ----------
 draw_board:
@@ -709,3 +755,41 @@ read_pixel:
     pop ax
 
     ret
+
+; ----------
+; converts an int to a string
+; ----------
+inttostr:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov bp, sp
+    mov ax, [bp + 14]
+    mov dl, '$'
+    push dx
+    mov si, 10
+inttostr_loop0:
+    mov dx, 0
+    div si
+    add dx, 48
+    push dx
+    cmp ax, 0
+    jne inttostr_loop0
+    mov bx, [bp + 12]
+inttostr_loop1:
+    pop dx
+    mov [bx], dl
+    inc bx
+    cmp dl, '$'
+    jne inttostr_loop1
+
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+
+    ret 4
