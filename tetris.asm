@@ -50,6 +50,8 @@ score_msg db "score: $"
 score_buf db "000$"
 score dw 0
 
+quit_msg db "q to quit$"
+
 ; --------------------------------------------------
 ; CODE
 ; --------------------------------------------------
@@ -154,6 +156,12 @@ draw_element:
     mov dh, 1
     mov dl, 8
     mov bx, score_buf
+    call print
+
+    ; print quit msg
+    mov dh, 23
+    mov dl, 1
+    mov bx, quit_msg
     call print
 
     ; delay game loop
